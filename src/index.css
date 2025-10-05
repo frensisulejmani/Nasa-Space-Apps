@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.header-font {
+  font-family: 'Roboto Slab', serif;
+}
+
+/* Starry background canvas or video */
+#star-background {
+  position: fixed;       /* Always stay behind */
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;            /* Backmost layer */
+  pointer-events: none;  /* Allow clicks on UI above */
+  background-color: #000; /* fallback black */
+}
+
+/* Optional: make other UI panels semi-transparent */
+.ui-panel {
+  background-color: rgba(0, 0, 0, 0.8); /* dark, semi-transparent */
+  backdrop-filter: blur(2px);           /* optional blur effect */
+  z-index: 10;                           /* above background */
+}

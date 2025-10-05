@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NASA Space Viewer - Solar System Explorer</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body { 
+    font-family: 'Segoe UI', Arial, sans-serif;
+    overflow: hidden;
+    background: #000;
+  }
+  
+  #map { 
+    width: 100vw; 
+    height: 100vh;
+  }
+  
+  #controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.95);
+    color: white;
+    padding: 15px;
+    border-radius: 10px;
+    z-index: 1000;
+    box-shadow: 0 4px 30px rgba(0,0,0,0.8);
+    max-width: 300px;
+    max-height: 95vh;
+    overflow-y: auto;
+  }
+  
+  #controls::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  #controls::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+  }
+  
+  #controls::-webkit-scrollbar-thumb {
+    background: #4CAF50;
+    border-radius: 4px;
+  }
+  
+  #controls h3 {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    border-bottom: 2px solid #4CAF50;
+    padding-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .body-selector {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .body-btn {
+    padding: 10px 5px;
+    background: #222;
+    color: white;
+    border: 2px solid #444;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: bold;
+    transition: all 0.3s;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .body-btn .icon {
+    font-size: 20px;
+  }
+
+  .body-btn:hover {
+    background: #333;
+    border-color: #666;
+    transform: translateY(-2px);
+  }
+
+  .body-btn.active {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    border-color: #4CAF50;
+    box-shadow: 0 2px 10px rgba(76, 175, 80, 0.4);
+  }
+  
+  .view-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  
+  .view-btn {
+    flex: 1;
+    padding: 8px 6px;
+    background: #222;
+    color: white;
+    border: 2px solid #444;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: bold;
+    transition: all 0.3s;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  
+  .view-btn .icon {
+    font-size: 18px;
+  }
+  
+  .view-btn:hover {
+    background: #333;
+    border-color: #666;
+    transform: translateY(-2px);
+  }
+  
+  .view-btn.active {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    border-color: #4CAF50;
+    box-shadow: 0 2px 10px rgba(76, 175, 80, 0.4);
+  }
+
+  .date-selector {
+    margin-bottom: 12px;
+    padding: 10px;
+    background: rgba(76, 175, 80, 0.1);
+    border-radius: 8px;
+    border: 1px solid #4CAF50;
+  }
+
+  .date-selector label {
+    display: block;
+    font-size: 11px;
+    margin-bottom: 6px;
+    color: #4CAF50;
+    font-weight: bold;
+  }
+
+  .date-selector select {
+    width: 100%;
+    padding: 8px;
+    background: #222;
+    color: white;
+    border: 2px solid #444;
+    border-radius: 6px;
+    font-size: 12px;
+  }
+
+  .date-selector select:focus {
+    outline: none;
+    border-color: #4CAF50;
+  }
+  
+  .description {
+    background: rgba(76, 175, 80, 0.1);
+    border-left: 3px solid #4CAF50;
+    padding: 8px;
+    margin-top: 10px;
+    font-size: 10px;
+    line-height: 1.4;
+    color: #ccc;
+    border-radius: 4px;
+  }
+  
+  #info {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.95);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    z-index: 1000;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.6);
+  }
+  
+  #info .detail {
+    margin: 5px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  #info .icon {
+    font-size: 16px;
+  }
+  
+  .leaflet-tile {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+
+  #elevationOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: black;
+    z-index: 999;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  #elevationOverlay.active {
+    display: flex;
+  }
+
+  #elevationImage {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .zoom-controls {
+    position: absolute;
+    bottom: 80px;
+    left: 10px;
+    z-index: 1001;
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .zoom-controls.active {
+    display: flex;
+  }
+
+  .zoom-btn {
+    width: 40px;
+    height: 40px;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    border: 2px solid #4CAF50;
+    border-radius: 8px;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+  }
+
+  .zoom-btn:hover {
+    background: #4CAF50;
+    transform: scale(1.1);
+  }
+
+  #legend {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.95);
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    z-index: 1001;
+    display: none;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.6);
+    max-width: 220px;
+  }
+
+  #legend.active {
+    display: block;
+  }
+
+  #legend h4 {
+    margin: 0 0 10px 0;
+    font-size: 13px;
+    border-bottom: 2px solid #4CAF50;
+    padding-bottom: 6px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0;
+    font-size: 11px;
+  }
+
+  .legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.3);
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="elevationOverlay">
+  <img id="elevationImage" src="" alt="Elevation Map">
+</div>
+
+<div id="legend">
+  <h4>🏔️ Elevation Legend</h4>
+  
+  <div class="legend-item">
+    <div class="legend-color" style="background: #e01a1a;"></div>
+    <span>High Terrain</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-color" style="background: #D2691E;"></div>
+    <span>Hills & Plateaus</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-color" style="background: #90EE90;"></div>
+    <span>Lowlands</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-color" style="background: #228B22;"></div>
+    <span>Base Level</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-color" style="background: #4169E1;"></div>
+    <span>Depressions</span>
+  </div>
+  <div class="legend-item">
+    <div class="legend-color" style="background: #00008B;"></div>
+    <span>Deepest Areas</span>
+  </div>
+</div>
+
+<div class="zoom-controls" id="zoomControls">
+  <button class="zoom-btn" onclick="zoomElevationIn()">+</button>
+  <button class="zoom-btn" onclick="zoomElevationOut()">−</button>
+  <button class="zoom-btn" onclick="resetElevationZoom()">⟲</button>
+</div>
+
+<div id="controls">
+  <h3>
+    <span>🌌</span>
+    <span>NASA Space Viewer</span>
+  </h3>
+
+  <div class="body-selector">
+    <button class="body-btn active" id="earthBtn" onclick="selectBody('earth')">
+      <span class="icon">🌍</span>
+      <span>Earth</span>
+    </button>
+    <button class="body-btn" id="moonBtn" onclick="selectBody('moon')">
+      <span class="icon">🌙</span>
+      <span>Moon</span>
+    </button>
+    <button class="body-btn" id="marsBtn" onclick="selectBody('mars')">
+      <span class="icon">🔴</span>
+      <span>Mars</span>
+    </button>
+    <button class="body-btn" id="mercuryBtn" onclick="selectBody('mercury')">
+      <span class="icon">☿</span>
+      <span>Mercury</span>
+    </button>
+  </div>
+  
+  <div class="view-toggle">
+    <button class="view-btn active" id="satelliteBtn" onclick="switchToSatellite()">
+      <span class="icon">🛰️</span>
+      <span>Satellite</span>
+    </button>
+    <button class="view-btn" id="elevationBtn" onclick="switchToElevation()">
+      <span class="icon">🏔️</span>
+      <span>Elevation</span>
+    </button>
+  </div>
+
+  <div class="date-selector" id="dateSelector">
+    <label for="quickDate">Ose zgjedh datë të gatshme:</label>
+    <select id="quickDate" onchange="setQuickDate()">
+      <option value="">-- Zgjedh --</option>
+      <option value="2024-09-01">2024-09-01 (Shtator)</option>
+      <option value="2024-08-15">2024-08-15 (Gusht)</option>
+      <option value="2024-07-01">2024-07-01 (Korrik)</option>
+      <option value="2024-06-15">2024-06-15 (Qershor)</option>
+      <option value="2024-05-01">2024-05-01 (Maj)</option>
+      <option value="2024-01-15">2024-01-15 (Janar)</option>
+      <option value="2023-12-01">2023-12-01 (Dhjetor 2023)</option>
+    </select>
+  </div>
+  
+  <div class="description" id="description">
+    🛰️ Viewing true color satellite imagery from NASA's VIIRS/SNPP. Shows Earth as it appears in visible light.
+  </div>
+</div>
+
+<div id="info">
+  <div class="detail">
+    <span class="icon">🌍</span>
+    <span id="body-info">Earth</span>
+  </div>
+  <div class="detail">
+    <span class="icon">🛰️</span>
+    <span id="layer-info">VIIRS/SNPP True Color</span>
+  </div>
+  <div class="detail">
+    <span class="icon">📅</span>
+    <span id="date-info">2024-08-15</span>
+  </div>
+  <div class="detail">
+    <span class="icon">📍</span>
+    <span id="zoom-info">Zoom: 2/9</span>
+  </div>
+</div>
+
+<script>
+let currentBody = 'earth';
+let currentView = 'satellite';
+let currentDate = "2024-08-15";
+let currentTileLayer = null;
+let elevationZoom = 1;
+
+const BODIES = {
+    mercury: {
+        name: "Mercury",
+        icon: "☿",
+        satellite: {
+            url: "https://trek.nasa.gov/tiles/Mercury/EQ/Mercury_MESSENGER_MDIS_Basemap_LOI_Mosaic_Global_166m/1.0.0//default/default028mm/{z}/{y}/{x}.jpg",
+            label: "MESSENGER MDIS Mosaic",
+            description: "☿ Mercury surface from MESSENGER spacecraft. Shows craters, plains, and scarps at 166m resolution."
+        },
+        elevation: {
+            image: "https://pressbooks.online.ucf.edu/app/uploads/sites/40/2018/12/OSC_Astro_09_05_MercuryTopo-1.jpg",
+            label: "MLA Elevation Data",
+            info: "MESSENGER Laser Altimeter"
+        },
+        hasDates: false
+    },
+    earth: {
+        name: "Earth",
+        icon: "🌍",
+        satellite: {
+            url: `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${currentDate}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`,
+            label: "VIIRS/SNPP True Color",
+            description: "🛰️ Viewing true color satellite imagery from NASA's VIIRS/SNPP. Shows Earth as it appears in visible light."
+        },
+        elevation: {
+            image: "https://media.sciencephoto.com/image/e0500675/800wm",
+            label: "Global Elevation Map",
+            info: "SRTM/ASTER Data"
+        },
+        hasDates: true,
+        dates: [
+            { value: "2024-09-01", label: "2024-09-01 (Shtator)" },
+            { value: "2024-08-15", label: "2024-08-15 (Gusht)" },
+            { value: "2024-07-01", label: "2024-07-01 (Korrik)" },
+            { value: "2024-06-15", label: "2024-06-15 (Qershor)" },
+            { value: "2024-05-01", label: "2024-05-01 (Maj)" },
+            { value: "2024-01-15", label: "2024-01-15 (Janar)" },
+            { value: "2023-12-01", label: "2023-12-01 (Dhjetor 2023)" }
+        ]
+    },
+    moon: {
+        name: "Moon",
+        icon: "🌙",
+        satellite: {
+            url: "https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_303ppd_v02/1.0.0//default/default028mm/{z}/{y}/{x}.jpg",
+            label: "LRO WAC Global Mosaic",
+            description: "🌙 Moon surface from Lunar Reconnaissance Orbiter. Shows maria, highlands, and craters at 100m resolution."
+        },
+        elevation: {
+            image: "https://pubs.usgs.gov/of/2006/1367/images/coverphoto.jpg",
+            label: "Moon Topography",
+            info: "3D Elevation Model"
+        },
+        hasDates: false
+    },
+    mars: {
+        name: "Mars",
+        icon: "🔴",
+        satellite: {
+            url: "https://trek.nasa.gov/tiles/Mars/EQ/Mars_Viking_MDIM21_ClrMosaic_global_232m/1.0.0//default/default028mm/{z}/{y}/{x}.jpg",
+            label: "Viking MDIM Mosaic",
+            description: "🔴 Mars surface from Viking Orbiter missions. Shows Olympus Mons, Valles Marineris, and polar ice caps."
+        },
+        elevation: {
+            image: "https://cdn.mos.cms.futurecdn.net/XdrsSzvjJB9bc5wTyFW3KV-1200-80.jpg.webp",
+            label: "Mars Topography",
+            info: "Marsquake Elevation Data"
+        },
+        hasDates: false
+    }
+};
+
+const map = L.map('map', {
+    center: [20, 0],
+    zoom: 2,
+    minZoom: 1,
+    maxZoom: 9,
+    worldCopyJump: true,
+    maxBounds: [[-85, -180], [85, 180]],
+    maxBoundsViscosity: 0.5
+});
+
+function createSatelliteLayer(body) {
+    const config = BODIES[body];
+    let url = config.satellite.url;
+    
+    if (body === 'earth') {
+        url = `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${currentDate}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`;
+    }
+    
+    return L.tileLayer(url, {
+        attribution: 'NASA',
+        tileSize: 256,
+        noWrap: false,
+        bounds: [[-85.0511, -180], [85.0511, 180]],
+        keepBuffer: 8,
+        updateWhenIdle: false,
+        updateWhenZooming: false,
+        updateInterval: 100,
+        errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+    });
+}
+
+currentTileLayer = createSatelliteLayer(currentBody);
+currentTileLayer.addTo(map);
+
+window.selectBody = function(body) {
+    currentBody = body;
+    
+    ['mercury', 'earth', 'moon', 'mars'].forEach(b => {
+        document.getElementById(b + 'Btn').classList.remove('active');
+    });
+    document.getElementById(body + 'Btn').classList.add('active');
+    
+    const dateSelector = document.getElementById('dateSelector');
+    
+    if (body === 'earth') {
+        dateSelector.style.display = 'block';
+    } else {
+        dateSelector.style.display = 'none';
+    }
+    
+    document.getElementById('body-info').textContent = BODIES[body].name;
+    
+    if (currentView === 'satellite') {
+        switchToSatellite();
+    } else {
+        switchToElevation();
+    }
+};
+
+window.setQuickDate = function() {
+    const quickDate = document.getElementById('quickDate').value;
+    if (quickDate) {
+        currentDate = quickDate;
+        
+        if (currentView === 'satellite') {
+            switchToSatellite();
+        }
+    }
+};
+
+window.switchToSatellite = function() {
+    currentView = 'satellite';
+    document.getElementById('satelliteBtn').classList.add('active');
+    document.getElementById('elevationBtn').classList.remove('active');
+    document.getElementById('elevationOverlay').classList.remove('active');
+    document.getElementById('zoomControls').classList.remove('active');
+    document.getElementById('legend').classList.remove('active');
+    document.getElementById('map').style.display = 'block';
+    
+    if (currentTileLayer) {
+        map.removeLayer(currentTileLayer);
+    }
+    
+    currentTileLayer = createSatelliteLayer(currentBody);
+    currentTileLayer.addTo(map);
+    
+    const bodyData = BODIES[currentBody];
+    document.getElementById('layer-info').textContent = bodyData.satellite.label;
+    document.getElementById('date-info').textContent = (currentBody === 'earth' && currentDate) ? currentDate : 'Archive Data';
+    document.getElementById('description').style.display = 'block';
+    document.getElementById('description').textContent = bodyData.satellite.description;
+};
+
+window.switchToElevation = function() {
+    currentView = 'elevation';
+    document.getElementById('elevationBtn').classList.add('active');
+    document.getElementById('satelliteBtn').classList.remove('active');
+    document.getElementById('elevationOverlay').classList.add('active');
+    document.getElementById('zoomControls').classList.add('active');
+    document.getElementById('legend').classList.add('active');
+    document.getElementById('map').style.display = 'none';
+    
+    const bodyData = BODIES[currentBody];
+    
+    document.getElementById('elevationImage').src = bodyData.elevation.image;
+    document.getElementById('layer-info').textContent = bodyData.elevation.label;
+    document.getElementById('date-info').textContent = bodyData.elevation.info;
+    document.getElementById('zoom-info').textContent = 'Zoom: ' + elevationZoom.toFixed(1) + 'x';
+    document.getElementById('description').style.display = 'none';
+    
+    resetElevationZoom();
+};
+
+window.zoomElevationIn = function() {
+    elevationZoom = Math.min(elevationZoom * 1.3, 5);
+    updateElevationZoom();
+};
+
+window.zoomElevationOut = function() {
+    elevationZoom = Math.max(elevationZoom / 1.3, 0.5);
+    updateElevationZoom();
+};
+
+window.resetElevationZoom = function() {
+    elevationZoom = 1;
+    updateElevationZoom();
+};
+
+function updateElevationZoom() {
+    const img = document.getElementById('elevationImage');
+    img.style.transform = `scale(${elevationZoom})`;
+    document.getElementById('zoom-info').textContent = 'Zoom: ' + elevationZoom.toFixed(1) + 'x';
+}
+
+map.on('zoomend', function() {
+    if (currentView === 'satellite') {
+        const zoom = map.getZoom();
+        document.getElementById('zoom-info').textContent = `Zoom: ${zoom}/9`;
+    }
+});
+
+L.control.scale({
+    imperial: false,
+    metric: true,
+    position: 'bottomright'
+}).addTo(map);
+
+document.addEventListener('keydown', function(e) {
+    if (currentView === 'satellite') {
+        switch(e.key) {
+            case '+':
+            case '=':
+                map.zoomIn();
+                break;
+            case '-':
+            case '_':
+                map.zoomOut();
+                break;
+            case 'Home':
+                map.setView([20, 0], 2);
+                break;
+        }
+    } else if (currentView === 'elevation') {
+        switch(e.key) {
+            case '+':
+            case '=':
+                zoomElevationIn();
+                break;
+            case '-':
+            case '_':
+                zoomElevationOut();
+                break;
+            case 'Home':
+                resetElevationZoom();
+                break;
+        }
+    }
+    
+    if (e.key === '1') switchToSatellite();
+    if (e.key === '2') switchToElevation();
+    
+    if (e.key === 'e') selectBody('earth');
+    if (e.key === 'r') selectBody('moon');
+    if (e.key === 't') selectBody('mars');
+    if (e.key === 'q') selectBody('mercury');
+});
+
+console.log('🌌 NASA Space Viewer Ready!');
+console.log('🌍 E=Earth | 🌙 R=Moon | 🔴 T=Mars | ☿ Q=Mercury');
+console.log('🛰️ 1=Satellite | 🏔️ 2=Elevation');
+console.log('⌨️ +/- zoom | Home=reset');
+</script>
+</body>
+</html>
